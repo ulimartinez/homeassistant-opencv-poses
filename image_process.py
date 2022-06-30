@@ -165,8 +165,40 @@ class OpenCVImageProcessor(ImageProcessingEntity):
 
     def process_image(self, image):
         """Process the image."""
+        # Specify the paths for the 2 files
+        protoFile = "pose/mpi/pose_deploy_linevec_faster_4_stages.prototxt"
+        weightsFile = "pose/mpi/pose_iter_160000.caffemodel"
+
+        # Read the network into Memory
+        net = cv2.dnn.readNetFromCaffe(protoFile, weightsFile)
+
         cv_image = cv2.imdecode(numpy.asarray(bytearray(image)), cv2.IMREAD_UNCHANGED)
 
+        frame = cv2.imread(image)
+        # Prepare the frame to be fed to the network
+        inpBlob = cv2.dnn.blobFromImage(frame, 1.0 / 255, (inWidth, inHeight), (0, 0, 0), swapRB=False, crop=False)
+
+        # Set the prepared object as the input blob of the network
+        net.setInput(inpBlob)
+
+        output = net.forward()
+        points = []
+        for i in range(len(output)):
+            # confidence map of corresponding body's part.
+            probMap = output[0, i, :, :]
+
+            # Find global maxima of the probMap.
+            minVal, prob, minLoc, point = cv2.minMaxLoc(probMap)
+
+            # Scale the point to fit on the original image
+            x = point[0]
+            y = point[1]
+
+            if prob > threshold :
+                points.append((int(x), int(y)))
+
+        # TODO: calculate the matches
+        # TODO: report info on matches
         matches = {}
         total_matches = 0
 
